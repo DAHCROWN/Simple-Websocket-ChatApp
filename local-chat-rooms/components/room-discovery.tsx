@@ -1,21 +1,18 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
+import { IRoom } from "@/lib/types";
 
-interface Room {
-	id: string;
-	name: string;
-}
+
 
 interface RoomDiscoveryProps {
-	onRoomSelect: (room: Room) => void;
+	onRoomSelect: (room: IRoom) => void;
 }
 
 export default function RoomDiscovery({ onRoomSelect }: RoomDiscoveryProps) {
-	const [rooms, setRooms] = useState<Room[]>([]);
+	const [rooms, setRooms] = useState<IRoom[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
@@ -107,7 +104,7 @@ export default function RoomDiscovery({ onRoomSelect }: RoomDiscoveryProps) {
 	);
 }
 
-async function getAvailableChatRooms(): Promise<Room[]> {
+async function getAvailableChatRooms(): Promise<IRoom[]> {
 	try {
 		const response = await fetch("/api/rooms");
 		if (!response.ok) throw new Error("Failed to fetch rooms");

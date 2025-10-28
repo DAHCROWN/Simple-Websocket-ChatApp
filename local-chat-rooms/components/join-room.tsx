@@ -7,15 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import "dotenv/config";
-import { io } from "socket.io-client";
-
-interface Room {
-	id: string;
-	name: string;
-}
+import { io, Socket } from "socket.io-client";
+import { IRoom } from "@/lib/types";
+import { socket } from "@/src/ws/socket";
 
 interface JoinRoomProps {
-	room: Room;
+	room: IRoom;
 	onJoin: (username: string) => void;
 }
 
@@ -35,13 +32,10 @@ export default function JoinRoom({ room, onJoin }: JoinRoomProps) {
 		try {
 			setLoading(true);
 			setError(null);
-			// Todo find way around
-			const url = `http://localhost:5001`;
-			console.log("Websocket URL: ", url);
-			const socket = io(url);
-			//emit WS message
-			socket.emit("new-user", username, room.id);
 
+			// Emit WS message
+			socket.connect();
+			socket.emit("new-user", username, room.id);
 			onJoin(username);
 		} catch (err) {
 			setError("Failed to join room. Please try again.");

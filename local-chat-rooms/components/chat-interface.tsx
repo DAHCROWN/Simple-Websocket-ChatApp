@@ -1,27 +1,18 @@
 "use client";
 
 import type React from "react";
-
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Send, LogOut } from "lucide-react";
-import { io } from "socket.io-client";
 import "dotenv/config";
-
-interface Message {
-	id: string;
-	username: string;
-	text: string;
-	timestamp: Date;
-}
+import { IMessage, IRoom } from "@/lib/types";
+import { socket } from "@/src/ws/socket";
+import { v4 as uuidv4 } from "uuid";
 
 interface ChatSession {
-	room: {
-		id: string;
-		name: string;
-	};
+	room: IRoom;
 	username: string;
 }
 
@@ -34,54 +25,44 @@ export default function ChatInterface({
 	session,
 	onLeave,
 }: ChatInterfaceProps) {
-	const [messages, setMessages] = useState<Message[]>([]);
+	const [messages, setMessages] = useState<IMessage[]>([]);
 	const [inputValue, setInputValue] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
-	const wsRef = useRef<WebSocket | null>(null);
+	const [isConnected, setIsConnected] = useState(socket.connected);
 
 	useEffect(() => {
-		const connectWebSocket = async () => {
-			try {
-				setLoading(true);
-				// TODO: Implement WebSocket connection
-				// Expected: Connect to ws://localhost:PORT/rooms/{roomId}
-				// Expected: Send initial message with username
-				// Expected: Listen for incoming messages
-				// const ws = await connectToRoom(session.room.id, session.username);
-				// wsRef.current = ws;
+		function onConnect() {
+			setIsConnected(true);
+		}
+		function onDisconnect() {
+			setIsConnected(false);
+		}
 
-				//* My implementation
-				const socket = io(`http://localhost:${process.env.WS_PORT}`);
+		function onChatMessage(message: any) {
+			console.log("New Message", message);
+			const newMessage: IMessage = {
+				id: message.id,
+				createdAt: message.time,
+				roomId: message.roomId,
+				author: message.name,
+				userId: null,
+				message: message.message,
+			};
+			setMessages((prevMessages) => [...prevMessages, newMessage]);
+		}
 
-				// socket.on("chat-message", (data) => {
-				// 	appendMessage(`${data.name}: ${data.message}`);
-				// });
-
-				// socket.on("user-connected", (name) => {
-				// 	appendMessage(`${name} connected`);
-				// });
-
-				// socket.on("user-disconnected", (name) => {
-				// 	appendMessage(`${name} disconnected`);
-				// });
-			} catch (err) {
-				setError("Failed to connect to chat room");
-				console.error("Error connecting to room:", err);
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		connectWebSocket();
+		socket.on("connect", onConnect);
+		socket.on("disconnect", onDisconnect);
+		socket.on("chat-message", onChatMessage);
 
 		return () => {
-			if (wsRef.current) {
-				wsRef.current.close();
-			}
+			socket.off("connect", onConnect);
+			socket.off("disconnect", onDisconnect);
+			socket.off("chat-message", onChatMessage);
 		};
-	}, [session.room.id, session.username]);
+	}, [session.room.id, session.room.name]);
 
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -89,37 +70,24 @@ export default function ChatInterface({
 
 	const handleSendMessage = async (e: React.FormEvent) => {
 		e.preventDefault();
-
 		if (!inputValue.trim()) return;
-
 		try {
-			if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-				const message = {
-					text: inputValue,
-					username: session.username,
-					timestamp: new Date(),
-				};
-				wsRef.current.send(JSON.stringify(message));
-				setInputValue("");
-			} else {
-				setError("Not connected to chat room");
-			}
+			// console.log("User message", inputValue);
+			socket.emit("send-chat-message", inputValue);
+			const newMessage: IMessage = {
+				id: uuidv4().toString(),
+				createdAt: new Date().toISOString(),
+				roomId: session.room.id,
+				author: session.username,
+				userId: null,
+				message: inputValue,
+			};
+
+			setMessages((prevMessages) => [...prevMessages, newMessage]);
+			setInputValue("");
 		} catch (err) {
 			setError("Failed to send message");
 			console.error("Error sending message:", err);
-		}
-	};
-
-	const handleLeave = async () => {
-		try {
-			if (wsRef.current) {
-				wsRef.current.close();
-			}
-			await leaveChatRoom(session.room.id, session.username);
-			onLeave();
-		} catch (err) {
-			console.error("Error leaving room:", err);
-			onLeave();
 		}
 	};
 
@@ -137,7 +105,9 @@ export default function ChatInterface({
 						</p>
 					</div>
 					<Button
-						onClick={handleLeave}
+						onClick={() => {
+							socket.off("disconnect");
+						}}
 						variant="outline"
 						size="sm"
 						className="gap-2 bg-transparent"
@@ -175,26 +145,26 @@ export default function ChatInterface({
 						<div
 							key={message.id}
 							className={`flex ${
-								message.username === session.username
+								message.author === session.username
 									? "justify-end"
 									: "justify-start"
 							}`}
 						>
 							<div
 								className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-									message.username === session.username
+									message.author === session.username
 										? "bg-primary text-primary-foreground"
 										: "bg-muted text-foreground"
 								}`}
 							>
-								{message.username !== session.username && (
+								{message.author !== session.username && (
 									<p className="text-xs font-semibold mb-1 opacity-75">
-										{message.username}
+										{message.author}
 									</p>
 								)}
-								<p className="break-words">{message.text}</p>
+								<p className="break-words">{message.message}</p>
 								<p className="text-xs mt-1 opacity-70">
-									{new Date(message.timestamp).toLocaleTimeString([], {
+									{new Date(message.createdAt).toLocaleTimeString([], {
 										hour: "2-digit",
 										minute: "2-digit",
 									})}
@@ -215,12 +185,12 @@ export default function ChatInterface({
 							placeholder="Type a message..."
 							value={inputValue}
 							onChange={(e) => setInputValue(e.target.value)}
-							disabled={loading || !wsRef.current}
+							disabled={loading || !isConnected}
 							className="flex-1"
 						/>
 						<Button
 							type="submit"
-							disabled={loading || !inputValue.trim() || !wsRef.current}
+							disabled={loading || !inputValue.trim() || !isConnected}
 							className="bg-primary hover:bg-primary/90 gap-2"
 						>
 							<Send className="w-4 h-4" />
@@ -258,7 +228,7 @@ async function connectToRoom(
 	});
 }
 
-async function leaveChatRoom(roomId: string, username: string): Promise<void> {
+async function leaveChatRoom(roomId: Number, username: string): Promise<void> {
 	try {
 		const response = await fetch(`/api/rooms/${roomId}/leave`, {
 			method: "POST",

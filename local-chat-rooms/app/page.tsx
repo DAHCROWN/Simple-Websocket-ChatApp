@@ -4,25 +4,22 @@ import { useState } from "react";
 import RoomDiscovery from "@/components/room-discovery";
 import JoinRoom from "@/components/join-room";
 import ChatInterface from "@/components/chat-interface";
+import { IRoom } from "@/lib/types";
+import { io } from "socket.io-client";
 
 type AppState = "discovery" | "join" | "chat";
 
-interface Room {
-	id: string;
-	name: string;
-}
-
 interface ChatSession {
-	room: Room;
+	room: IRoom;
 	username: string;
 }
 
 export default function Home() {
 	const [state, setState] = useState<AppState>("discovery");
-	const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+	const [selectedRoom, setSelectedRoom] = useState<IRoom | null>(null);
 	const [chatSession, setChatSession] = useState<ChatSession | null>(null);
 
-	const handleRoomSelect = (room: Room) => {
+	const handleRoomSelect = (room: IRoom) => {
 		setSelectedRoom(room);
 		setState("join");
 	};
@@ -34,7 +31,6 @@ export default function Home() {
 				username,
 			});
 			setState("chat");
-      
 		}
 	};
 

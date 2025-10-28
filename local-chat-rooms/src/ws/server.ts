@@ -29,12 +29,17 @@ async function main() {
 				socket.to(chatRoomId.toString()).emit("user-connected", name);
 			});
 
-			socket.on("send-chat-message", (message: string) => {
-				console.log(`New Message from ${socket.id}`);
+			socket.on("send-chat-message", (message: string, messageId: string) => {
 				const _user = getUserDetails(socket.id);
-				socket.to(_user.chatRoomId).emit("chat-message", {
+				console.log(
+					`New Message from ${_user.name}, says ${message}, in chatRoom ${_user.chatRoomId}`
+				);
+				socket.to(_user.chatRoomId.toString()).emit("chat-message", {
 					message: message,
+					id: messageId,
+					roomId: _user.chatRoomId,
 					name: _user.name,
+					time: new Date().toISOString(),
 				});
 			});
 
@@ -42,7 +47,9 @@ async function main() {
 				console.log(`User ${socket.id} disconnected`);
 				const _user = getUserDetails(socket.id);
 
-				socket.to(_user.chatRoomId).emit("user-disconnected", users[socket.id]);
+				socket
+					.to(_user.chatRoomId.toString())
+					.emit("user-disconnected", users[socket.id]);
 				delete users[socket.id];
 			});
 		});

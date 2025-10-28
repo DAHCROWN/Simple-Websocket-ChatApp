@@ -24,8 +24,9 @@ export const chatRooms = sqliteTable("chat_rooms", {
 });
 
 export const chatMessages = sqliteTable("chat_messages", {
-	id: int().primaryKey({ autoIncrement: true }),
+	id: text().primaryKey(),
 	roomId: int("room_id").references(() => chatRooms.id),
+	author: text("username").references(() => users.name),
 	userId: int("user_id").references(() => users.id),
 	message: text("message").notNull(),
 	createdAt: text("created_at")
