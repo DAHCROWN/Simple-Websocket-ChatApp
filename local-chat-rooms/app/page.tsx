@@ -34,6 +34,7 @@ export default function Home() {
 				username,
 			});
 			setState("chat");
+      
 		}
 	};
 
