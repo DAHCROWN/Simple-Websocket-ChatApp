@@ -39,6 +39,7 @@ class RoomManager {
 			const result = await db
 				.insert(chatMessages)
 				.values({
+					id: "",
 					roomId,
 					userId,
 					message: text,
