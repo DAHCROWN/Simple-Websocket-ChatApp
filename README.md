@@ -63,7 +63,5 @@ This is a bare-bones real-time chat application built with Node.js and Socket.IO
 - **React Rewrite:**
   - Rebuild the frontend using React for maintainability and scalability.
   - Prepare the codebase for deployment as a mobile app using React Native.
-
----
-
-Feel free to use this project as a starting point for your own real-time chat applications!
+  - Implement Image sharing
+  - Call over LAN
